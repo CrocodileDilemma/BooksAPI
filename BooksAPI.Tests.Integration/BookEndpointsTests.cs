@@ -109,6 +109,61 @@ public class BookEndpointsTests : IClassFixture<WebApplicationFactory<IApiMarker
     }
     #endregion
 
+    #region GET LIST
+    [Fact]
+    public async Task GetBooks_ReturnsAllBooks_WhenBooksExists()
+    {
+        // Arrange
+        var httpClient = _factory.CreateClient();
+        var book = GenerateBook();
+        await httpClient.PostAsJsonAsync("/books", book);
+        _createdIsbns.Add(book.Isbn);
+        var books = new List<Book> { book };
+
+        // Act
+        var response = await httpClient.GetAsync($"/books");
+        var result = await response.Content.ReadFromJsonAsync<List<Book>>();
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        result.Should().BeEquivalentTo(books);
+    }
+
+    [Fact]
+    public async Task GetBooks_ReturnsNoBooks_WhenNoBooksExists()
+    {
+        // Arrange
+        var httpClient = _factory.CreateClient();
+
+        // Act
+        var response = await httpClient.GetAsync($"/books");
+        var result = await response.Content.ReadFromJsonAsync<List<Book>>();
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        result.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetBooks_ReturnsBooks_WhenTitlesExist()
+    {
+        // Arrange
+        var httpClient = _factory.CreateClient();
+        var book = GenerateBook("Royal Assassin");
+        await httpClient.PostAsJsonAsync("/books", book);
+        _createdIsbns.Add(book.Isbn);
+        var books = new List<Book> { book };
+
+        // Act
+        var response = await httpClient.GetAsync($"/books?searchTerm=oyal");
+        var result = await response.Content.ReadFromJsonAsync<List<Book>>();
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        result.Should().BeEquivalentTo(books);
+    }
+    #endregion
+
     private Book GenerateBook(string title = "Assassin's Apprentice")
     {
         return new Book
