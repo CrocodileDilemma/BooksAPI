@@ -6,15 +6,17 @@ using Xunit;
 
 namespace BooksAPI.Tests.Integration;
 
-public class BookEndpointsTests : IClassFixture<WebApplicationFactory<IApiMarker>>
+public class BookEndpointsTests : IClassFixture<WebApplicationFactory<IApiMarker>>, IAsyncLifetime
 {
     private readonly WebApplicationFactory<IApiMarker> _factory;
+    private readonly List<string> _createdIsbns = new();
 
     public BookEndpointsTests(WebApplicationFactory<IApiMarker> factory)
     {
         _factory = factory;
     }
 
+    #region POST
     [Fact]
     public async Task CreateBook_CreatesBook_WhenDataIsValid()
     {
@@ -24,9 +26,10 @@ public class BookEndpointsTests : IClassFixture<WebApplicationFactory<IApiMarker
 
         // Act
         var response = await httpClient.PostAsJsonAsync("/books", book);
+        _createdIsbns.Add(book.Isbn);
         var result = await response.Content.ReadFromJsonAsync<Book>();
 
-        // Asset
+        // Assert
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.Created);
         result.Should().BeEquivalentTo(book);
         response.Headers.Location.AbsolutePath.Should().Be($"/books/{book.Isbn}");
@@ -45,7 +48,7 @@ public class BookEndpointsTests : IClassFixture<WebApplicationFactory<IApiMarker
         var errors = await response.Content.ReadFromJsonAsync<IEnumerable<ValidationError>>();
         var error = errors!.Single();
 
-        // Asset
+        // Assert
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
         error.PropertyName.Should().Be("Isbn");
         error.ErrorMessage.Should().Be("Value was not a valid ISBN-13!");
@@ -60,15 +63,51 @@ public class BookEndpointsTests : IClassFixture<WebApplicationFactory<IApiMarker
 
         // Act
         await httpClient.PostAsJsonAsync("/books", book);
+        _createdIsbns.Add(book.Isbn);
         var response = await httpClient.PostAsJsonAsync("/books", book);
         var errors = await response.Content.ReadFromJsonAsync<IEnumerable<ValidationError>>();
         var error = errors!.Single();
 
-        // Asset
+        // Assert
         response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
         error.PropertyName.Should().Be("Isbn");
         error.ErrorMessage.Should().Be("A book with this ISBN-13 already exists!");
     }
+    #endregion
+
+    #region GET
+    [Fact]
+    public async Task GetBook_ReturnsBook_WhenBookExists()
+    {
+        // Arrange
+        var httpClient = _factory.CreateClient();
+        var book = GenerateBook();
+        await httpClient.PostAsJsonAsync("/books", book);
+        _createdIsbns.Add(book.Isbn);
+
+        // Act
+        var response = await httpClient.GetAsync($"/books/{book.Isbn}");    
+        var result = await response.Content.ReadFromJsonAsync<Book>();
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        result.Should().BeEquivalentTo(book);
+    }
+
+    [Fact]
+    public async Task GetBook_ReturnsNotFound_WhenBookDoesNotExist()
+    {
+        // Arrange
+        var httpClient = _factory.CreateClient();
+        var isbn = GenerateIsbn();
+
+        // Act
+        var response = await httpClient.GetAsync($"/books/{isbn}");
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+    }
+    #endregion
 
     private Book GenerateBook(string title = "Assassin's Apprentice")
     {
@@ -87,5 +126,16 @@ public class BookEndpointsTests : IClassFixture<WebApplicationFactory<IApiMarker
     {
         return $"{Random.Shared.Next(100, 999)}-" +
             $"{Random.Shared.Next(1000000000, 2100999999)}";
+    }
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public async Task DisposeAsync()
+    {
+        var httpClient = _factory.CreateClient();
+        foreach (var isbn in _createdIsbns)
+        {
+            await httpClient.DeleteAsync($"/books/{isbn}");
+        }
     }
 }
