@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "BooksAPI.Tests.Integration": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:51816;http://localhost:51817"
+    }
+  }
+}
