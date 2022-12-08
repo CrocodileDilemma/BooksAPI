@@ -6,12 +6,12 @@ using Xunit;
 
 namespace BooksAPI.Tests.Integration;
 
-public class BookEndpointsTests : IClassFixture<WebApplicationFactory<IApiMarker>>, IAsyncLifetime
+public class BookEndpointsTests : IClassFixture<BooksApiFactory>, IAsyncLifetime
 {
-    private readonly WebApplicationFactory<IApiMarker> _factory;
+    private readonly BooksApiFactory _factory;
     private readonly List<string> _createdIsbns = new();
 
-    public BookEndpointsTests(WebApplicationFactory<IApiMarker> factory)
+    public BookEndpointsTests(BooksApiFactory factory)
     {
         _factory = factory;
     }
