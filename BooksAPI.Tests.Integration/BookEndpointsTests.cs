@@ -164,6 +164,93 @@ public class BookEndpointsTests : IClassFixture<WebApplicationFactory<IApiMarker
     }
     #endregion
 
+    #region PUT
+    [Fact]
+    public async Task UpdateBook_UpdatesBook_WhenDataIsValid()
+    {
+        // Arrange
+        var httpClient = _factory.CreateClient();
+        var book = GenerateBook();
+        await httpClient.PostAsJsonAsync("/books", book);
+        _createdIsbns.Add(book.Isbn);
+
+        // Act
+        book.PageCount = 69;
+        var response = await httpClient.PutAsJsonAsync($"/books/{book.Isbn}", book);
+        var result = await response.Content.ReadFromJsonAsync<Book>();
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.OK);
+        result.Should().BeEquivalentTo(book);
+    }
+
+    [Fact]
+    public async Task UpdateBook_DoesNotUpdateBook_WhenDataIsInvalid()
+    {
+        // Arrange
+        var httpClient = _factory.CreateClient();
+        var book = GenerateBook();
+        await httpClient.PostAsJsonAsync("/books", book);
+        _createdIsbns.Add(book.Isbn);
+
+        // Act
+        book.Title = string.Empty;
+        var response = await httpClient.PutAsJsonAsync($"/books/{book.Isbn}", book);
+        var errors = await response.Content.ReadFromJsonAsync<IEnumerable<ValidationError>>();
+        var error = errors!.Single();
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.BadRequest);
+        error.PropertyName.Should().Be("Title");
+        error.ErrorMessage.Should().Be("'Title' must not be empty.");
+    }
+
+    [Fact]
+    public async Task UpdateBook_ReturnsNotFound_WhenBookDoesNotExist()
+    {
+        // Arrange
+        var httpClient = _factory.CreateClient();
+        var book = GenerateBook();
+       
+        // Act
+        var response = await httpClient.PutAsJsonAsync($"/books/{book.Isbn}", book);
+        
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+    }
+    #endregion
+
+    #region DELETE
+    [Fact]
+    public async Task DeleteBook_ReturnsNotFound_WhenBookDoesNotExist()
+    {
+        // Arrange
+        var httpClient = _factory.CreateClient();
+        var isbn = GenerateIsbn();
+
+        // Act
+        var response = await httpClient.DeleteAsync($"/books/{isbn}");
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task DeleteBook_DeletesBook_WhenBookExists()
+    {
+        // Arrange
+        var httpClient = _factory.CreateClient();
+        var book = GenerateBook();
+        await httpClient.PostAsJsonAsync("/books", book);
+
+        // Act
+        var response = await httpClient.DeleteAsync($"/books/{book.Isbn}");
+
+        // Assert
+        response.StatusCode.Should().Be(System.Net.HttpStatusCode.NoContent);
+    }
+    #endregion
+
     private Book GenerateBook(string title = "Assassin's Apprentice")
     {
         return new Book
